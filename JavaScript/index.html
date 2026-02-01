@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Digital Audio Experiments</title>
+</head>
+<body>
+
+    <h1>Sample is Discrete</h1>
+    
+    <div style="margin-bottom:10px;">
+        Sample Rate (Hz):
+        <input id="fsInput" type="number" value="8000">
+        
+        Frequency (Hz):
+        <input id="fInput" type="number" value="440">
+    
+        Count of Sample:
+        <input id="NInput" type="number" value="100">
+
+        <button id="updateBtn">Update</button>
+        <button id="startAudioBtn">Start Audio</button>
+        <button id="stopAudioBtn">Stop Audio</button>
+        <span id="audioInfo" style="margin-left:10px; color:#444;"></span>
+    </div>
+
+    <!--
+      x-axis : time (sample index)
+      y-axis : amplitude
+    -->
+    <canvas id="c" width="900" height="350"></canvas>
+
+    <!-- 実験01 -->
+    <script src="./experiments/sampling_is_discrete.js"></script>
+
+</body>
+</html>
+
