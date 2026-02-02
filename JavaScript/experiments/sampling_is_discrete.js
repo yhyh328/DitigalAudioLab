@@ -27,6 +27,7 @@ const context = canvas.getContext("2d");
 let fs = 8000;
 let f  = 440;
 let N  = 100;
+let samples = [];
 
 // 座標系（★ここを触れば自由に動く）
 const origin = {
@@ -43,7 +44,7 @@ const scale = {
 // サンプル生成
 // ==========================
 function generateSamples(fs, f, N) {
-    let samples = [];
+    samples = [];
     for (let n = 0; n < N; n++) {
         samples.push(Math.sin(2 * Math.PI * f * n / fs));
     }
@@ -101,8 +102,10 @@ function drawAxes() {
 // ==========================
 // 波形・サンプル描画
 // ==========================
-function drawSignal(samples) {
-    if (!samples.length) return;
+function drawSignal() {
+    
+    if (!Array.isArray(samples) || !samples.length) return;
+    
     context.strokeStyle = "#000";
     context.lineWidth = 2;
     context.beginPath();
@@ -113,6 +116,7 @@ function drawSignal(samples) {
         if (i === 0) context.moveTo(x, y);
         else context.lineTo(x, y);
     });
+
     context.stroke();
 
     // sample points
@@ -129,10 +133,10 @@ function drawSignal(samples) {
 // ==========================
 // 実行
 // ==========================
-function render(samples) {
+function render() {
     context.clearRect(0, 0, canvas.width, canvas.height);
     drawAxes();         // 基準座標系
-    drawSignal(samples);    
+    drawSignal();    
 }
 
 // ==========================
@@ -144,8 +148,8 @@ const nInput  = document.getElementById("NInput");
 const btn     = document.getElementById("updateBtn");
 
 // 初期レンダー
-let samples = generateSamples(fs, f, N);
-render(samples);
+samples = generateSamples(fs, f, N);
+render();
 
 // ==========================
 // Audio (Web Audio API) 追加
@@ -203,3 +207,12 @@ startAudioBtn?.addEventListener("click", () =>
 stopAudioBtn?.addEventListener("click", () =>
     stopAudio().catch(console.error)
 );
+
+btn.addEventListener("click", () => {
+    fs = Number(fsInput.value);
+    f  = Number(fInput.value);
+    N  = Number(nInput.value);
+    samples = generateSamples(fs, f, N);
+    render();
+    if (isAudioRunning) sendAudioParams();
+});
