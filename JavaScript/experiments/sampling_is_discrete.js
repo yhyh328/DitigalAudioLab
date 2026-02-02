@@ -16,6 +16,30 @@
  */
 
 // ==========================
+// Canvas 初期化
+// ==========================
+const canvas  = document.getElementById("c");
+const context = canvas.getContext("2d");
+
+// ==========================
+// グローバル状態
+// ==========================
+let fs = 8000;
+let f  = 440;
+let N  = 100;
+
+// 座標系（★ここを触れば自由に動く）
+const origin = {
+    x: 60,      // x = 0
+    y: 180      // y = 0（x軸）
+};
+
+const scale = {
+    x: 6,       // sample index → pixel
+    y: 80       // amplitude → pixel
+};
+
+// ==========================
 // サンプル生成
 // ==========================
 function generateSamples(fs, f, N) {
@@ -28,107 +52,78 @@ function generateSamples(fs, f, N) {
 }
 
 // ==========================
-// Canvas 初期化
-// ==========================
-const canvas  = document.getElementById("c");
-const context = canvas.getContext("2d");
-
-// ==========================
 // 軸の描画
 // ==========================
 function drawAxes() {
+
     const W = canvas.width;
     const H = canvas.height;
-
-    const left = 40;
-    const right = 10;
-    const top = 10;
-    const bottom = 30;
 
     context.strokeStyle = "#888";
     context.lineWidth = 1;
 
     // y-axis (amplitude)
     context.beginPath();
-    context.moveTo(left, top);
-    context.lineTo(left, H - bottom);
+    context.moveTo(origin.x, 10);
+    context.lineTo(origin.x, H - 30);
     context.stroke();
 
     // x-axis (time)
     context.beginPath();
-    context.moveTo(left, H / 2);
-    context.lineTo(W - right, H / 2);
+    context.moveTo(origin.x, origin.y);
+    context.lineTo(W - 10, origin.y);
     context.stroke();
 
     // labels
     context.fillStyle = "#000";
     context.font = "12px sans-serif";
-    context.fillText("Amplitude", 5, 20);
-    context.fillText("Time (sample index)", W / 2 - 60, H - 10);
 
-    // ---- ticks ----
-    // y = 0 (amplitude)
-    context.fillText("0", left - 15, H / 2 + 4);
-    // x = 0 (time origin)
-    context.fillText("0", left - 5, H / 2 + 20);
+    // x-axis label
+    context.textAlign = "center";
+    context.textBaseline = "bottom";
+    context.fillText("Time (sample index)", W / 2, H - 18);
+
+    // y-axis label
+    context.textAlign = "left";
+    context.textBaseline = "top";
+    context.fillText("Amplitude", 10, 20);
+
+    // origin labels
+    context.textAlign = "bottom";
+    context.textBaseline = "middle";
+    context.fillText("0", origin.x - 6, origin.y);
+
+    context.textAlign = "center";
+    context.textBaseline = "bottom";
+    context.fillText("0", origin.x, origin.y + 4);
 }
 
 // ==========================
-// 波形描画
+// 波形・サンプル描画
 // ==========================
-function drawWave(samples) {
-    const W = canvas.width;
-    const H = canvas.height;
-
-    const left   = 40;
-    const right  = 10;
-    const top    = 10;
-    const bottom = 30;
-
-    const plotW = W - left - right;
-    const plotH = H - top - bottom;
-
-    context.strokeStyle = "black";
+function drawSignal(samples) {
+    if (!samples.length) return;
+    context.strokeStyle = "#000";
     context.lineWidth = 2;
     context.beginPath();
 
     samples.forEach((v, i) => {
-        const x = left + (i / (samples.length - 1)) * plotW;
-        const y = top + plotH / 2 - v * (plotH / 2 * 0.9);
+        const x = origin.x + i * scale.x;
+        const y = origin.y - v * scale.y;
         if (i === 0) context.moveTo(x, y);
         else context.lineTo(x, y);
     });
-
     context.stroke();
-}
 
-// ==========================
-// サンプル描画
-// ==========================
-function drawDots(samples) {
-    const W = canvas.width;
-    const H = canvas.height;
-
-    const left   = 40;
-    const right  = 10;
-    const top    = 10;
-    const bottom = 30;
-
-    const plotW = W - left - right;
-    const plotH = H - top - bottom;
-
+    // sample points
     context.fillStyle = "red";
-
     samples.forEach((v, i) => {
-        const x = left + (i / (samples.length - 1)) * plotW;
-        const y = top + plotH / 2 - v * (plotH / 2 * 0.9);
+        const x = origin.x + i * scale.x;
+        const y = origin.y - v * scale.y;
         context.beginPath();
-        context.fillStyle = (i === 0) ? "blue" : "red"
-        context.arc(x, y, 3, 0, 2 * Math.PI);
+        context.arc(x, y, 3, 0, Math.PI * 2);
         context.fill();
     });
-
-    context.stroke();
 }
 
 // ==========================
@@ -137,26 +132,16 @@ function drawDots(samples) {
 function render(samples) {
     context.clearRect(0, 0, canvas.width, canvas.height);
     drawAxes();         // 基準座標系
-    drawWave(samples);　// 補間された波形（線）
-    drawDots(samples);  // 実際のサンプル（点）
+    drawSignal(samples);    
 }
 
-
 // ==========================
-// サンプリング設定
+// UI
 // ==========================
-
-let fs = 8000;
-let f  = 440;
-let N  = 100;
-
-// sampling rate [Hz]
 const fsInput = document.getElementById("fsInput");  
-// signal frequency [Hz]
 const fInput  = document.getElementById("fInput");  
-// number of samples
-const nInput       = document.getElementById("NInput");     
-const btn = document.getElementById("updateBtn");
+const nInput  = document.getElementById("NInput");     
+const btn     = document.getElementById("updateBtn");
 
 // 初期レンダー
 let samples = generateSamples(fs, f, N);
@@ -173,82 +158,48 @@ const startAudioBtn = document.getElementById("startAudioBtn");
 const stopAudioBtn  = document.getElementById("stopAudioBtn");
 const audioInfo     = document.getElementById("audioInfo");
 
-// Workletへ現在パラメータを送る
 function sendAudioParams() {
-  if (!workletNode) return;
+    if (!workletNode) return;
 
-  // 数値の安全な補正
-  const vFs = (isFinite(fs) && fs > 0) ? fs : 8000;
-  const vF  = (isFinite(f)) ? f : 440;
+    workletNode.port.postMessage({
+        virtualFs: fs,
+        freq: f,
+        gain: 0.2
+    });
 
-  workletNode.port.postMessage({
-    virtualFs: vFs,
-    freq: vF,
-    gain: 0.2
-  });
-
-  if (audioCtx && audioInfo) {
-    audioInfo.textContent = 
-        `audio sampleRate=${audioCtx.sampleRate}Hz / virtualFs=${vFs}Hz / f=${vF}Hz`;
-  }
+    audioInfo.textContent =
+        `audio SR=${audioCtx.sampleRate}Hz / virtualFs=${fs}Hz / f=${f}Hz`;
 }
 
 async function startAudio() {
-  if (isAudioRunning) return;
+    if (isAudioRunning) return;
 
-  // 注意：ブラウザのポリシーにより、ユーザーの操作（クリック等）なしでは開始できない場合がある
-  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  await audioCtx.resume();
+    audioCtx = new AudioContext();
+    await audioCtx.resume();
+    await audioCtx.audioWorklet.addModule(
+        "experiments/virtual_fs_sine_worklet.js"
+    );
 
-  // Workletモジュールの読み込み（通常、サーバーまたはlocalhost環境でのみ動作します）
-  await audioCtx.audioWorklet.addModule("experiments/virtual_fs_sine_worklet.js");
+    workletNode = new AudioWorkletNode(audioCtx, "virtual-fs-sine");
+    workletNode.connect(audioCtx.destination);
 
-  workletNode = new AudioWorkletNode(audioCtx, "virtual-fs-sine");
-  workletNode.connect(audioCtx.destination);
-
-  isAudioRunning = true;
-  sendAudioParams();
+    isAudioRunning = true;
+    sendAudioParams();
 }
 
 async function stopAudio() {
-  if (!audioCtx) return;
-  try {
+    if (!audioCtx) return;
     if (workletNode) workletNode.disconnect();
     await audioCtx.close();
-  } finally {
-    workletNode = null;
     audioCtx = null;
+    workletNode = null;
     isAudioRunning = false;
-    if (audioInfo) audioInfo.textContent = "";
-  }
+    audioInfo.textContent = "";
 }
 
-// ボタンイベント（ボタンが存在しない場合はスキップ）
-if (startAudioBtn) {
-  startAudioBtn.addEventListener("click", () => {
-    startAudio().catch(err => {
-      console.error(err);
-      alert("Audio start failed. (Check console)  ※ file:// では動かない可能性あり");
-    });
-  });
-}
-
-if (stopAudioBtn) {
-  stopAudioBtn.addEventListener("click", () => {
-    stopAudio().catch(console.error);
-  });
-}
-
-// ユーザーの入力を反映
-btn.addEventListener("click", () => {
-  fs = Number(fsInput.value);
-  f = Number(fInput.value);
-  N = Number(nInput.value);
-
-  samples = generateSamples(fs, f, N);
-  render(samples);
-
-  if (isAudioRunning) sendAudioParams();
-
-  console.log(`fs=${fs}, f=${f}, N=${N}`);
-});
+startAudioBtn?.addEventListener("click", () =>
+    startAudio().catch(console.error)
+);
+stopAudioBtn?.addEventListener("click", () =>
+    stopAudio().catch(console.error)
+);
