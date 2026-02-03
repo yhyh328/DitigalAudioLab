@@ -90,7 +90,7 @@ function drawAxes() {
     context.fillText("Amplitude", 10, 20);
 
     // origin labels
-    context.textAlign = "bottom";
+    context.textAlign = "end";
     context.textBaseline = "middle";
     context.fillText("0", origin.x - 6, origin.y);
 
@@ -105,17 +105,43 @@ function drawAxes() {
 function drawSignal() {
     
     if (!Array.isArray(samples) || !samples.length) return;
-    
+   
+    const useZOH = !!(zohToggle && zohToggle.checked);
+
     context.strokeStyle = "#000";
     context.lineWidth = 2;
     context.beginPath();
 
-    samples.forEach((v, i) => {
-        const x = origin.x + i * scale.x;
-        const y = origin.y - v * scale.y;
-        if (i === 0) context.moveTo(x, y);
-        else context.lineTo(x, y);
-    });
+    if (useZOH) {
+        
+        // ZOH(Zero-Order Hold): hold sample value until next sample (step plot)
+        // Draw: horizontal segment to next x at current y, then vertical jump to next y
+        const x = origin.x;
+        const y = origin.y - samples[0] * scale.y;
+        context.moveTo(x, y);
+
+        for (let i = 0; i < samples.length - 1; i++) {
+            const y_i   = origin.y - samples[i] * scale.y;
+            const x_nxt = origin.x + (i + 1) * scale.x;
+            const y_nxt = origin.y - samples[i + 1] * scale.y;
+
+            // horizontal hold
+            context.lineTo(x_nxt, y_i);
+            // vertical transition at next sample time
+            context.lineTo(x_nxt, y_nxt);
+        }
+
+    } else {
+        
+        // linear connection (visual aid)
+        samples.forEach((v, i) => {
+            const x = origin.x + i * scale.x;
+            const y = origin.y - v * scale.y;
+            if (i === 0) context.moveTo(x, y);
+            else context.lineTo(x, y);
+        })
+
+    }
 
     context.stroke();
 
@@ -142,10 +168,11 @@ function render() {
 // ==========================
 // UI
 // ==========================
-const fsInput = document.getElementById("fsInput");  
-const fInput  = document.getElementById("fInput");  
-const nInput  = document.getElementById("NInput");     
-const btn     = document.getElementById("updateBtn");
+const fsInput   = document.getElementById("fsInput");  
+const fInput    = document.getElementById("fInput");  
+const nInput    = document.getElementById("NInput"); 
+const zohToggle = document.getElementById("zohToggle");
+const updateBtn = document.getElementById("updateBtn");
 
 // 初期レンダー
 samples = generateSamples(fs, f, N);
@@ -158,9 +185,8 @@ let audioCtx = null;
 let workletNode = null;
 let isAudioRunning = false;
 
-const startAudioBtn = document.getElementById("startAudioBtn");
-const stopAudioBtn  = document.getElementById("stopAudioBtn");
-const audioInfo     = document.getElementById("audioInfo");
+const audioBtn  = document.getElementById("audioToggleBtn");
+const audioInfo = document.getElementById("audioInfo");
 
 function sendAudioParams() {
     if (!workletNode) return;
@@ -189,6 +215,7 @@ async function startAudio() {
 
     isAudioRunning = true;
     sendAudioParams();
+    audioBtn.textContent = "Stop Audio";
 }
 
 async function stopAudio() {
@@ -199,16 +226,15 @@ async function stopAudio() {
     workletNode = null;
     isAudioRunning = false;
     audioInfo.textContent = "";
+    audioBtn.textContent = "Start Audio";
 }
 
-startAudioBtn?.addEventListener("click", () =>
-    startAudio().catch(console.error)
-);
-stopAudioBtn?.addEventListener("click", () =>
-    stopAudio().catch(console.error)
-);
+audioBtn?.addEventListener("click", async() => {
+    if (!isAudioRunning) startAudio().catch(console.error);
+    else stopAudio().catch(console.error);
+})
 
-btn.addEventListener("click", () => {
+updateBtn.addEventListener("click", () => {
     fs = Number(fsInput.value);
     f  = Number(fInput.value);
     N  = Number(nInput.value);
@@ -216,3 +242,8 @@ btn.addEventListener("click", () => {
     render();
     if (isAudioRunning) sendAudioParams();
 });
+
+zohToggle?.addEventListener("change", () => {
+    render();
+});
+
